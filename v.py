@@ -5,7 +5,8 @@ import pygame, sys, time
 from time import sleep as wait
 import math
 import serial
-ser1 = serial.Serial("/dev/ttyACM0", 115200)
+ser1 = serial.Serial("/dev/ttyACM0", 2000000)
+
 wait(1)
 ser1.write("d".encode())
 
@@ -18,6 +19,8 @@ def main():
 	
 	#read amplitude and frequency of music file with defined frame skips
 	file_name = sys.argv[1]
+	thresh = sys.argv[2]
+	
 	frame_rate, amplitude = read(file_name)
 	frame_skip = 250
 	amplitude = amplitude[:,0] + amplitude[:,1]
@@ -36,7 +39,8 @@ def main():
 	pygame.mixer.music.load(file_name)
 	pygame.mixer.music.play()
 	now = time.time()	
-	
+	prev = ""
+	current = ""
 
 	#visualizer animation starts here
 	for i in range(len(amplitude[width:])):
@@ -45,19 +49,33 @@ def main():
 		
 		#circular animation: radius of circle depends on magnitude amplitude and color of circle depends on frequency
 		try:
-			if amplitude[i] > 250:
-				pygame.draw.circle(screen, [(frequency[i]*2)%255, (frequency[i]*3)%255, (frequency[i]*5)%255], center, frequency[i]/10000, 5)
-			
-				print(int(frequency[i]/10000))
+			if amplitude[i] > int(thresh):
+				ser1.reset_output_buffer()
+				
+				
 				if (frequency[i]/10000)  < 40:
-					ser1.write("d".encode())
+					currecnt = "d"
+					
 				if (frequency[i]/10000)  > 40  and (frequency[i]/10000)  < 100:
-					ser1.write("dl".encode())
+					current = "l"
+					
 				if (frequency[i]/10000) > 100 and (frequency[i]/10000)  < 250:
-					ser1.write("dm".encode())
+					current = "m"
+					
 				if (frequency[i]/10000)  > 250:
-					ser1.write("dh".encode())				
-
+					current = "h"
+					
+				if prev != current:
+					ser1.write("d".encode())
+					ser1.write(current.encode())
+					
+					ser1.reset_output_buffer()
+					ser1.flush()
+					ser1.send_break(0.2)
+					prev = current
+					print(current)			
+					
+				
 												
 			
 		except ValueError:
